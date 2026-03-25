@@ -1,0 +1,73 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-agent-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Model Configuration
+      - MODEL_NAME=${MODEL_NAME:-gpt-4-turbo-preview}
+      - ANTHROPIC_MODEL_NAME=${ANTHROPIC_MODEL_NAME:-claude-haiku-4-5}
+      - MODEL_TEMPERATURE=${MODEL_TEMPERATURE:-0.7}
+      - MODEL_MAX_TOKENS=${MODEL_MAX_TOKENS:-1000}
+      # API Keys (set the ones you need)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      # Google Vertex AI
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - COHERE_API_KEY=${COHERE_API_KEY:-}
+      # API Configuration
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_PORT=${API_PORT:-8000}
+      - API_RELOAD=${API_RELOAD:-false}
+      - API_RATE_LIMIT_PER_MINUTE=${API_RATE_LIMIT_PER_MINUTE:-120}
+      - API_RATE_LIMIT_CHECK_DIFF_PER_MINUTE=${API_RATE_LIMIT_CHECK_DIFF_PER_MINUTE:-20}
+      - API_RATE_LIMIT_HEALTH_PER_MINUTE=${API_RATE_LIMIT_HEALTH_PER_MINUTE:-600}
+      - API_RATE_LIMIT_TOOLS_PER_MINUTE=${API_RATE_LIMIT_TOOLS_PER_MINUTE:-120}
+      - API_RATE_LIMIT_ROOT_PER_MINUTE=${API_RATE_LIMIT_ROOT_PER_MINUTE:-120}
+      # Application Settings
+      - APP_NAME=${APP_NAME:-AI Agent}
+      - APP_VERSION=${APP_VERSION:-1.0.0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./app:/app/app
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - ai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai-diff-checker-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ai-network
+
+networks:
+  ai-network:
+    driver: bridge
+
+volumes:
+  logs:
