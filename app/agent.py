@@ -1,9 +1,17 @@
 """Agent creation using LangChain's create_agent."""
 import os
 from langchain.agents import create_agent
-from langchain.chat_models import init_chat_model
 from app.tools import diff_checker
 from app.models import ReviewResponse
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+model = ChatGoogleGenerativeAI(
+    model=os.getenv("MODEL_NAME"),
+    project=os.getenv("GOOGLE_CLOUD_PROJECT"),
+    location=os.getenv("GOOGLE_CLOUD_LOCATION"),
+    temperature=0.5,  # Lower temperature for more deterministic agent responses
+    # max_output_tokens=2048,
+)
 
 
 def draft_diff_agent():
@@ -16,7 +24,7 @@ def draft_diff_agent():
     """
     try:
         agent = create_agent(
-            model=os.getenv("ANTHROPIC_MODEL_NAME"),
+            model=model,
             tools=[diff_checker],
             system_prompt=system_prompt
         )
@@ -40,7 +48,7 @@ def review_diff_agent():
 
     try:
         agent = create_agent(
-            model=os.getenv("ANTHROPIC_MODEL_NAME"),
+            model=model,
             tools=[],
             system_prompt=system_prompt,
             response_format=ReviewResponse

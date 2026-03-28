@@ -26,6 +26,7 @@ wheels/
 # Environment variables
 .env
 .env.local
+gha-creds-*.json
 
 # IDE
 .vscode/
@@ -49,3 +50,8 @@ htmlcov/
 
 # Docker
 .docker/
+
+# Local corporate certificates for Docker runtime trust
+certs/*.pem
+!certs/.gitkeep
+.config/

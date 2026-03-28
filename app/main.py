@@ -2,14 +2,41 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
+import certifi
 from dotenv import load_dotenv
 from pprint import pprint
 import truststore
+from pathlib import Path
 
 truststore.inject_into_ssl()
 
 # Load environment variables from .env file
 load_dotenv()
+
+
+# def configure_ssl_ca_bundle() -> None:
+#     """Merge optional corporate CA with certifi bundle for outbound HTTPS clients."""
+#     default_bundle_path = Path(certifi.where())
+#     custom_ca_path = Path(os.getenv("CUSTOM_CA_CERT_PATH", "/app/certs/corporate-ca.pem"))
+
+#     if not custom_ca_path.exists():
+#         return
+
+#     merged_bundle_path = Path("/tmp/ca-bundle-with-custom.pem")
+#     merged_bundle_path.write_text(
+#         default_bundle_path.read_text() + "\n" + custom_ca_path.read_text(),
+#         encoding="utf-8",
+#     )
+
+#     merged_bundle = str(merged_bundle_path)
+#     os.environ["SSL_CERT_FILE"] = merged_bundle
+#     os.environ["REQUESTS_CA_BUNDLE"] = merged_bundle
+#     os.environ["CURL_CA_BUNDLE"] = merged_bundle
+
+#     certifi.where = lambda: merged_bundle  # type: ignore[assignment]
+
+
+# configure_ssl_ca_bundle()
 
 from app.models import AgentRequest, AgentResponse, HealthResponse, DiffRequest
 from app.agent import draft_diff_agent, review_diff_agent

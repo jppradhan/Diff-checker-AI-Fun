@@ -1,0 +1,94 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  ARTIFACT_REPOSITORY: ${{ secrets.GCP_ARTIFACT_REPOSITORY }}
+  RUN_SERVICE: ${{ secrets.GCP_CLOUD_RUN_SERVICE }}
+  FRONTEND_BUCKET: ${{ secrets.GCP_FRONTEND_BUCKET }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev"
+
+      - name: Set image variables
+        id: image_vars
+        run: |
+          IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}/ai-diff-checker-api"
+          echo "image_base=${IMAGE_BASE}" >> "$GITHUB_OUTPUT"
+          echo "image_sha=${IMAGE_BASE}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image_vars.outputs.image_sha }}
+            ${{ steps.image_vars.outputs.image_base }}:latest
+
+      - name: Deploy backend to Cloud Run
+        id: deploy_backend
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: ${{ env.RUN_SERVICE }}
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+          image: ${{ steps.image_vars.outputs.image_sha }}
+          env_vars: |-
+            APP_VERSION=${{ github.sha }}
+            LOG_LEVEL=INFO
+            API_PORT=8000
+            API_RELOAD=false
+          flags: --port=8000 --allow-unauthenticated
+
+      - name: Determine frontend API URL
+        id: frontend_api
+        run: |
+          API_URL="${{ secrets.FRONTEND_API_URL }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="${{ steps.deploy_backend.outputs.url }}"
+          fi
+          echo "Resolved frontend API URL: $API_URL"
+          echo "frontend_api_url=$API_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Build frontend assets
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ steps.frontend_api.outputs.frontend_api_url }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish frontend to GCS
+        run: |
+          gcloud storage rsync \
+            --recursive \
+            --delete-unmatched-destination-objects \
+            frontend/dist "gs://${FRONTEND_BUCKET}"
+
+      - name: Verify backend health
+        run: |
+          curl --fail --show-error "${{ steps.deploy_backend.outputs.url }}/health"

@@ -113,6 +113,12 @@ docker build -f Dockerfile -t ai-diff-checker-api .
 docker run --rm -p 8000:8000 --env-file .env ai-diff-checker-api
 ```
 
+### Run in hot reload mode
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
 ## API
 
 ### `POST /check_diff_agent`

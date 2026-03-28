@@ -8,7 +8,7 @@ export default function Header() {
             <p className="text-gray-600 mt-1">Compare texts with AI-powered analysis. We don't store any data</p>
           </div>
           <div className="text-right text-sm text-gray-500">
-            <p>Powered by Pradhan</p>
+            <p>Powered by Alolite enterprise.</p>
           </div>
         </div>
       </div>
