@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy project files
 COPY pyproject.toml .
 COPY ./app ./app
-COPY ./.config ./.config
+# COPY ./.config ./.config
 # Install uv and sync dependencies
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     /root/.local/bin/uv venv /app/.venv && \
