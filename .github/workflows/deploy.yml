@@ -24,9 +24,6 @@ jobs:
       contents: read
       id-token: write
 
-    outputs:
-      image-sha: ${{ steps.set-image.outputs.image_sha }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,12 +62,6 @@ jobs:
             --location="${{ env.GCP_REGION }}" \
             --description="AI Diff Checker Docker images"
 
-      - name: Set image tag
-        id: set-image
-        run: |
-          IMAGE_SHA="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/ai-diff-checker-api:${{ github.sha }}"
-          echo "image_sha=${IMAGE_SHA}" >> "$GITHUB_OUTPUT"
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -78,7 +69,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ steps.set-image.outputs.image_sha }}
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/ai-diff-checker-api:${{ github.sha }}
             ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/ai-diff-checker-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -119,7 +110,7 @@ jobs:
         with:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.GCP_REGION }}
-          image: ${{ needs.build.outputs.image-sha }}
+          image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/ai-diff-checker-api:${{ github.sha }}
           flags: |
             --platform=managed
             --allow-unauthenticated
