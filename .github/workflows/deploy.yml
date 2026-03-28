@@ -188,6 +188,16 @@ jobs:
           npm ci
           npm run build
 
+      - name: Create GCS bucket (if not exists)
+        run: |
+          gcloud storage buckets describe "gs://${{ env.FRONTEND_BUCKET }}" 2>/dev/null || \
+          gcloud storage buckets create "gs://${{ env.FRONTEND_BUCKET }}" \
+            --location="${{ env.GCP_REGION }}" \
+            --uniform-bucket-level-access
+          gcloud storage buckets update "gs://${{ env.FRONTEND_BUCKET }}" --web-main-page-suffix=index.html --web-error-page=index.html
+          gcloud storage buckets add-iam-policy-binding "gs://${{ env.FRONTEND_BUCKET }}" \
+            --member=allUsers --role=roles/storage.objectViewer
+
       - name: Publish to GCS
         run: |
           gcloud storage rsync \
