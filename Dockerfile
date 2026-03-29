@@ -1,3 +1,14 @@
+# Frontend build stage
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+COPY ./frontend/package*.json ./
+RUN npm ci
+
+COPY ./frontend ./
+RUN npm run build
+
 # Use Python 3.11 slim image
 FROM python:3.11-slim
 
@@ -22,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy project files
 COPY pyproject.toml .
 COPY ./app ./app
+COPY --from=frontend-builder /frontend/dist ./frontend/dist
 # COPY ./.config ./.config
 # Install uv and sync dependencies
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \

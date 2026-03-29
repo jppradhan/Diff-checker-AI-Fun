@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import logging
 import os
 import certifi
@@ -67,9 +68,27 @@ app.add_middleware(
 app.add_middleware(RateLimitMiddleware)
 
 
+def _frontend_dist_dir() -> Path | None:
+    """Return the built frontend dist directory when available."""
+    candidates = [
+        Path("/app/frontend/dist"),
+        Path(__file__).resolve().parents[1] / "frontend" / "dist",
+    ]
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+    return None
+
+
 @app.get("/")
 async def root():
     """Root endpoint."""
+    frontend_dist = _frontend_dist_dir()
+    if frontend_dist:
+        index_file = frontend_dist / "index.html"
+        if index_file.exists() and index_file.is_file():
+            return FileResponse(index_file)
+
     return {
         "message": "AI Agent API",
         "docs": "/docs",
@@ -152,6 +171,30 @@ async def list_tools():
             for tool in ALL_TOOLS
         ]
     }
+
+
+@app.get("/{file_path:path}", include_in_schema=False)
+async def serve_frontend(file_path: str):
+    """Serve built frontend assets and support SPA routes."""
+    frontend_dist = _frontend_dist_dir()
+    if not frontend_dist:
+        raise HTTPException(status_code=404, detail="Frontend build not found")
+
+    requested_path = (frontend_dist / file_path).resolve()
+    dist_root = frontend_dist.resolve()
+
+    # Prevent path traversal outside the frontend dist directory.
+    if not str(requested_path).startswith(str(dist_root)):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    if requested_path.is_file():
+        return FileResponse(requested_path)
+
+    index_file = frontend_dist / "index.html"
+    if index_file.exists() and index_file.is_file():
+        return FileResponse(index_file)
+
+    raise HTTPException(status_code=404, detail="Frontend index not found")
 
 
 if __name__ == "__main__":
